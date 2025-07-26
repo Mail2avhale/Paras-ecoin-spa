@@ -1,68 +1,49 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
   <title>PARAS ECOIN</title>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script defer src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
   <style>
     body {
-      font-family: sans-serif;
-      background: #f8f6ff;
-      color: #333;
+      font-family: Arial, sans-serif;
       text-align: center;
-      padding: 2rem;
+      padding: 40px;
     }
-    .card {
-      background: white;
-      border-radius: 1.5rem;
-      padding: 2rem;
-      max-width: 500px;
-      margin: 1rem auto;
-      box-shadow: 0 0 12px rgba(0,0,0,0.1);
-    }
-    button {
-      background: violet;
+    #loginBtn {
+      padding: 10px 20px;
+      font-size: 18px;
+      background-color: #5E17EB;
       color: white;
-      padding: 0.8rem 1.5rem;
       border: none;
-      border-radius: 0.7rem;
+      border-radius: 8px;
       cursor: pointer;
-      font-weight: bold;
-      margin-top: 1rem;
     }
-    button:disabled {
-      background: grey;
+    #logoutBtn {
+      display: none;
+      padding: 8px 16px;
+      font-size: 14px;
+      margin-top: 20px;
+      background-color: crimson;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
-
-  <div id="login" class="card">
-    <h2>Welcome to PARAS ECOIN</h2>
-    <button onclick="googleLogin()">Sign in with Google</button>
-  </div>
-
-  <div id="app" class="card" style="display:none">
-    <h2>Hello, <span id="username"></span></h2>
-    <p><b>PEC Balance:</b> <span id="balance">0</span> PEC</p>
-    <p><b>VIP:</b> <span id="vip">No</span></p>
-    <p><b>Last Login:</b> <span id="lastLogin">--</span></p>
-
-    <button onclick="mineNow()">⛏️ Mine Now</button>
-    <button onclick="dailyBonus()">🎁 Daily Bonus</button>
-    <button onclick="tapTycoon()">👆 Tap Tycoon Game</button>
-    <button onclick="redeemCoins()">💸 Redeem</button>
-
-    <p><b>Total Mined:</b> <span id="totalMined">0</span> PEC</p>
-    <p><b>Charity Given:</b> <span id="charity">0</span> PEC</p>
-    <button onclick="logout()">Logout</button>
-  </div>
+  <h1>Welcome to PARAS ECOIN</h1>
+  <p id="status">Please login to continue</p>
+  <button id="loginBtn" onclick="handleLogin()">Sign in with Google</button>
+  <button id="logoutBtn" onclick="logout()">Logout</button>
 
   <script>
-  const firebaseConfig = {
+    // 🔧 Your Firebase Config here
+    const firebaseConfig = {
   apiKey: "AIzaSyBVzkXwX5Fhwq-NiCWbC9ii8cq-5jPY3ac",
   authDomain: "paras-ecoin-bfad2.firebaseapp.com",
   projectId: "paras-ecoin-bfad2",
@@ -75,141 +56,58 @@
     const auth = firebase.auth();
     const db = firebase.firestore();
 
-    let userUID = "";
+    let isLoggingIn = false;
 
-    async function googleLogin() {
+    function handleLogin() {
+      if (isLoggingIn) return;
+      isLoggingIn = true;
+
       const provider = new firebase.auth.GoogleAuthProvider();
-      try {
-        const result = await auth.signInWithPopup(provider);
-        const user = result.user;
-        userUID = user.uid;
 
-        const docRef = db.collection("users").doc(user.uid);
-        const docSnap = await docRef.get();
-
-        if (!docSnap.exists) {
-          await docRef.set({
-            email: user.email,
-            name: user.displayName,
-            balance: 0,
-            isVIP: false,
-            lastLogin: new Date().toISOString().split("T")[0],
-            totalMined: 0,
-            charityGiven: 0
-          });
-        }
-
-        document.getElementById("username").innerText = user.displayName;
-        showApp();
-      } catch (e) {
-        alert("Login failed: " + e.message);
-      }
-    }
-
-    function showApp() {
-      document.getElementById("login").style.display = "none";
-      document.getElementById("app").style.display = "block";
-      loadUserData();
-    }
-
-    async function loadUserData() {
-      const doc = await db.collection("users").doc(userUID).get();
-      const data = doc.data();
-      document.getElementById("balance").innerText = data.balance;
-      document.getElementById("vip").innerText = data.isVIP ? "Yes" : "No";
-      document.getElementById("lastLogin").innerText = data.lastLogin;
-      document.getElementById("totalMined").innerText = data.totalMined;
-      document.getElementById("charity").innerText = data.charityGiven;
-    }
-
-    async function mineNow() {
-      const ref = db.collection("users").doc(userUID);
-      const doc = await ref.get();
-      const data = doc.data();
-      const newBal = data.balance + 10;
-      const newTotal = data.totalMined + 10;
-
-      await ref.update({
-        balance: newBal,
-        totalMined: newTotal
-      });
-      loadUserData();
-    }
-
-    async function dailyBonus() {
-      const today = new Date().toISOString().split("T")[0];
-      const ref = db.collection("users").doc(userUID);
-      const doc = await ref.get();
-      const data = doc.data();
-
-      if (data.lastLogin === today) {
-        alert("Already claimed today’s bonus!");
-        return;
-      }
-
-      const bonus = Math.floor(Math.random() * 601) + 100; // 100 to 700
-      await ref.update({
-        balance: data.balance + bonus,
-        lastLogin: today
-      });
-      alert("Bonus Claimed: " + bonus + " PEC");
-      loadUserData();
-    }
-
-    async function tapTycoon() {
-      const coins = Math.floor(Math.random() * 30) + 20;
-      const ref = db.collection("users").doc(userUID);
-      const doc = await ref.get();
-      const data = doc.data();
-
-      await ref.update({
-        balance: data.balance + coins,
-        totalMined: data.totalMined + coins
-      });
-      alert("You earned " + coins + " PEC!");
-      loadUserData();
-    }
-
-    async function redeemCoins() {
-      const ref = db.collection("users").doc(userUID);
-      const doc = await ref.get();
-      const data = doc.data();
-
-      if (!data.isVIP) {
-        alert("Only VIP users can redeem.");
-        return;
-      }
-
-      const amount = parseInt(prompt("Enter PEC to redeem:"));
-      if (isNaN(amount) || amount <= 0 || amount > data.balance) {
-        alert("Invalid amount.");
-        return;
-      }
-
-      const charity = Math.floor(amount * 0.1);
-      const finalAmount = amount - charity;
-
-      await ref.update({
-        balance: data.balance - amount,
-        charityGiven: data.charityGiven + charity
-      });
-
-      alert("Redeemed: " + finalAmount + " PEC\n10% (" + charity + " PEC) sent to charity.");
-      loadUserData();
+      auth.signInWithPopup(provider)
+        .then((result) => {
+          const user = result.user;
+          document.getElementById("status").innerText = `Logged in as ${user.displayName}`;
+          document.getElementById("loginBtn").style.display = "none";
+          document.getElementById("logoutBtn").style.display = "inline-block";
+          saveUser(user);
+          isLoggingIn = false;
+        })
+        .catch((error) => {
+          alert("Login failed: " + error.message);
+          isLoggingIn = false;
+        });
     }
 
     function logout() {
-      auth.signOut().then(() => location.reload());
+      auth.signOut().then(() => {
+        document.getElementById("status").innerText = "Please login to continue";
+        document.getElementById("loginBtn").style.display = "inline-block";
+        document.getElementById("logoutBtn").style.display = "none";
+      });
+    }
+
+    function saveUser(user) {
+      const userRef = db.collection("users").doc(user.uid);
+      userRef.set({
+        uid: user.uid,
+        name: user.displayName,
+        email: user.email,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
     }
 
     auth.onAuthStateChanged((user) => {
       if (user) {
-        userUID = user.uid;
-        document.getElementById("username").innerText = user.displayName;
-        showApp();
+        document.getElementById("status").innerText = `Logged in as ${user.displayName}`;
+        document.getElementById("loginBtn").style.display = "none";
+        document.getElementById("logoutBtn").style.display = "inline-block";
+      } else {
+        document.getElementById("status").innerText = "Please login to continue";
+        document.getElementById("loginBtn").style.display = "inline-block";
+        document.getElementById("logoutBtn").style.display = "none";
       }
     });
   </script>
-
 </body>
 </html>
