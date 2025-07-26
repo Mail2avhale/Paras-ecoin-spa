@@ -1,57 +1,34 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PARAS ECOIN™</title>
-  <script defer src="https://www.gstatic.com/firebasejs/9.24.0/firebase-app-compat.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/9.24.0/firebase-auth-compat.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/9.24.0/firebase-firestore-compat.js"></script>
-  <style>
-    body{font-family:sans-serif;background:#f0f4f8;color:#333;display:flex;flex-direction:column;align-items:center;padding:20px;}
-    .card{background:white;padding:20px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.1);max-width:400px;width:100%;text-align:center;margin:10px 0;}
-    input, button{width:90%;padding:10px;margin:5px 0;font-size:16px;}
-    button{background:#6a0dad;color:#fff;border:none;border-radius:6px;cursor:pointer;}
-    button:hover{background:#580b9a;}
-    .vip{font-weight:bold;color:#ba8a00;}
-  </style>
+  <meta charset="UTF-8" />
+  <title>PARAS ECOIN Web App</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"></script>
 </head>
 <body>
-  <h1>PARAS ECOIN</h1>
-
-  <div id="auth-card" class="card">
-    <input id="email" type="email" placeholder="Email">
-    <input id="password" type="password" placeholder="Password">
-    <button id="signupBtn">Sign Up</button>
-    <button id="loginBtn">Log In</button>
-    <button id="resetBtn">Reset Password</button>
+  <h1>PARAS ECOIN Login</h1>
+  <div id="authSection">
+    <input id="email" placeholder="Email" />
+    <input id="password" type="password" placeholder="Password" />
+    <button onclick="signUp()">Sign Up</button>
+    <button onclick="login()">Login</button>
+    <button onclick="logout()">Logout</button>
+    <button onclick="resetPassword()">Reset Password</button>
+  </div>
+  
+  <div id="dashboard" style="display:none">
+    <h2>Welcome <span id="userEmail"></span></h2>
+    <p>Balance: <span id="userBalance"></span> PEC</p>
+    <p>Status: <span id="userVIP"></span></p>
+    <button onclick="mineCoins()">Mine Now</button>
+    <button onclick="dailyBonus()">Daily Bonus</button>
+    <button onclick="requestRedeem()">Redeem Coins</button>
   </div>
 
-  <div id="user-card" class="card" style="display:none;">
-    <p>Hello, <span id="uName"></span>! <span id="vipBadge" class="vip"></span></p>
-    <p>Your PEC Balance: <span id="uCoins">0</span></p>
-    <button id="dailyBtn">🎁 Daily Bonus</button>
-    <button id="mineBtn">💰 Mine Coins</button>
-    <button id="tapBtn">👆 Tap Tycoon (+2 PEC)</button>
-    <button id="mathBtn">🧠 Math Mania (+3 PEC)</button>
-    <button id="redeemBtn">💸 Redeem (VIP only)</button>
-    <button id="logoutBtn">Logout</button>
-  </div>
-
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.24.0/firebase-app.js";
-    import {
-      getAuth,
-      createUserWithEmailAndPassword,
-      signInWithEmailAndPassword,
-      signOut,
-      sendPasswordResetEmail,
-      onAuthStateChanged
-    } from "https://www.gstatic.com/firebasejs/9.24.0/firebase-auth.js";
-    import {
-      getFirestore, doc, setDoc, getDoc, updateDoc, serverTimestamp
-    } from "https://www.gstatic.com/firebasejs/9.24.0/firebase-firestore.js";
-
+  <script>
     const firebaseConfig = {
       apiKey: "AIzaSyDl0DNM_U1_S0pWGybdKml08eb-CUzFc48",
       authDomain: "paras-ecoin-ccb85.firebaseapp.com",
@@ -60,113 +37,114 @@
       messagingSenderId: "106833020083",
       appId: "1:106833020083:web:f43a025388e9e0c4201cc6"
     };
+    
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-
-    const authCard = document.getElementById("auth-card");
-    const userCard = document.getElementById("user-card");
-    const emailIn = document.getElementById('email'), passIn = document.getElementById('password');
-    const uName = document.getElementById('uName'), uCoins = document.getElementById('uCoins'), vipBadge = document.getElementById('vipBadge');
-
-    document.getElementById('signupBtn').onclick = async () => {
-      const email = emailIn.value, password = passIn.value;
-      try { const cred = await createUserWithEmailAndPassword(auth, email, password);
-        await setDoc(doc(db, 'users', cred.user.uid), {
-          name: email.split('@')[0],
-          email, isVIP: false, coins: 0, lastLogin: serverTimestamp()
-        });
-        alert('Registered!');
-      } catch(e){ alert(e.message) }
-    };
-    document.getElementById('loginBtn').onclick = async () => {
-      try { await signInWithEmailAndPassword(auth, emailIn.value, passIn.value); }
-      catch(e){ alert(e.message) }
-    };
-    document.getElementById('resetBtn').onclick = () => {
-      const email = emailIn.value;
-      if (!email) return alert('Enter email');
-      sendPasswordResetEmail(auth, email).then(() => alert('Reset link sent')).catch(e => alert(e.message));
-    };
-    document.getElementById('logoutBtn').onclick = () => signOut(auth);
-
-    document.getElementById('dailyBtn').onclick = async () => {
-      const u = auth.currentUser;
-      const ud = await getDoc(doc(db, 'users', u.uid));
-      const data = ud.data();
-      const last = data.lastLogin? data.lastLogin.toDate().toDateString(): '';
-      if (last === new Date().toDateString()) return alert('Already claimed today');
-      const bonus = 10;
-      await updateDoc(doc(db, 'users', u.uid), {
-        coins: data.coins + bonus,
-        lastLogin: serverTimestamp()
-      });
-      alert(`+${bonus} PEC`);
-      loadProfile();
-    };
-    document.getElementById('mineBtn').onclick = async () => {
-      const u = auth.currentUser;
-      const ud = await getDoc(doc(db, 'users', u.uid));
-      await updateDoc(doc(db, 'users', u.uid), {
-        coins: ud.data().coins + 5
-      });
-      alert('+5 PEC');
-      loadProfile();
-    };
-    document.getElementById('tapBtn').onclick = async () => {
-      const u = auth.currentUser;
-      const ud = await getDoc(doc(db,'users',u.uid));
-      await updateDoc(doc(db,'users',u.uid), {
-        coins: ud.data().coins + 2
-      });
-      alert('+2 PEC');
-      loadProfile();
-    };
-    document.getElementById('mathBtn').onclick = async () => {
-      const ans = prompt('3 + 5 = ?');
-      if (ans == '8') {
-        const u = auth.currentUser;
-        const ud = await getDoc(doc(db,'users',u.uid));
-        await updateDoc(doc(db,'users',u.uid), {
-          coins: ud.data().coins + 3
-        });
-        alert('+3 PEC');
-        loadProfile();
-      } else alert('Wrong!');
-    };
-    document.getElementById('redeemBtn').onclick = async () => {
-      const u = auth.currentUser;
-      const ud = await getDoc(doc(db,'users',u.uid));
-      const d = ud.data();
-      if (!d.isVIP) return alert('VIP only');
-      if (d.coins < 100) return alert('Minimum 100 PEC needed');
-      const red = Math.floor(d.coins * 0.9);
-      await updateDoc(doc(db,'users',u.uid), { coins: 0 });
-      alert(`Redeemed ${red} PEC (10% charity)`);
-      loadProfile();
-    };
-
-    function loadProfile() {
-      const u = auth.currentUser;
-      getDoc(doc(db, 'users', u.uid)).then(ud => {
-        const d = ud.data();
-        uName.textContent = d.name;
-        uCoins.textContent = d.coins;
-        vipBadge.textContent = d.isVIP ? '🌟 VIP' : '';
-      });
-    }
-
-    onAuthStateChanged(auth, user => {
+    auth.onAuthStateChanged(user => {
       if (user) {
-        authCard.style.display = 'none';
-        userCard.style.display = 'block';
-        loadProfile();
+        showDashboard(user);
       } else {
-        authCard.style.display = 'block';
-        userCard.style.display = 'none';
+        document.getElementById("dashboard").style.display = "none";
       }
     });
+
+    async function signUp() {
+      const email = emailInput.value;
+      const password = passwordInput.value;
+      try {
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        const user = userCredential.user;
+        await db.collection("users").doc(user.uid).set({
+          email,
+          balance: 0,
+          isVIP: false,
+          miningRate: 1,
+          lastLogin: firebase.firestore.Timestamp.now(),
+        });
+        alert("Sign Up Success!");
+      } catch (error) {
+        alert(error.message);
+      }
+    }
+
+    async function login() {
+      const email = emailInput.value;
+      const password = passwordInput.value;
+      try {
+        await auth.signInWithEmailAndPassword(email, password);
+        alert("Login Successful");
+      } catch (error) {
+        alert(error.message);
+      }
+    }
+
+    function logout() {
+      auth.signOut();
+      alert("Logged Out");
+    }
+
+    function resetPassword() {
+      const email = emailInput.value;
+      if (!email) return alert("Enter email");
+      auth.sendPasswordResetEmail(email);
+      alert("Password reset email sent!");
+    }
+
+    async function showDashboard(user) {
+      document.getElementById("authSection").style.display = "none";
+      document.getElementById("dashboard").style.display = "block";
+
+      const doc = await db.collection("users").doc(user.uid).get();
+      const data = doc.data();
+      document.getElementById("userEmail").innerText = data.email;
+      document.getElementById("userBalance").innerText = data.balance;
+      document.getElementById("userVIP").innerText = data.isVIP ? "VIP" : "Normal";
+    }
+
+    async function mineCoins() {
+      const user = auth.currentUser;
+      const userRef = db.collection("users").doc(user.uid);
+      const doc = await userRef.get();
+      const data = doc.data();
+      const newBal = data.balance + data.miningRate;
+      await userRef.update({ balance: newBal });
+      alert("Mined " + data.miningRate + " PEC");
+      showDashboard(user);
+    }
+
+    async function dailyBonus() {
+      const user = auth.currentUser;
+      const userRef = db.collection("users").doc(user.uid);
+      const doc = await userRef.get();
+      const newBal = doc.data().balance + 100;
+      await userRef.update({ balance: newBal });
+      alert("Received Daily Bonus!");
+      showDashboard(user);
+    }
+
+    async function requestRedeem() {
+      const user = auth.currentUser;
+      const doc = await db.collection("users").doc(user.uid).get();
+      const bal = doc.data().balance;
+      if (bal < 1000) return alert("Minimum 1000 PEC required to redeem");
+
+      const redeemAmount = bal * 0.9;
+      await db.collection("redeem_requests").add({
+        userId: user.uid,
+        amount: redeemAmount,
+        status: "pending",
+        createdAt: firebase.firestore.Timestamp.now(),
+      });
+
+      await db.collection("users").doc(user.uid).update({
+        balance: 0,
+      });
+
+      alert("Redeem Requested: " + redeemAmount + " PEC");
+      showDashboard(user);
+    }
   </script>
 </body>
 </html>
