@@ -1,96 +1,156 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>PARAS ECOIN</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <meta charset="UTF-8">
+  <title>PARAS ECOIN - Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Firebase -->
+  <script type="module">
+    // Firebase SDK imports
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getAuth, signInWithPopup, GoogleAuthProvider, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+    // Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyBVzkXwX5Fhwq-NiCWbC9ii8cq-5jPY3ac",
+      authDomain: "paras-ecoin-bfad2.firebaseapp.com",
+      projectId: "paras-ecoin-bfad2",
+      storageBucket: "paras-ecoin-bfad2.appspot.com",
+      messagingSenderId: "315406512180",
+      appId: "1:315406512180:web:a6330984e75cca65bc1a61"
+    };
+
+    // Initialize
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth();
+    const provider = new GoogleAuthProvider();
+
+    // UI Refs
+    const loginBtn = document.getElementById("loginBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const userInfo = document.getElementById("userInfo");
+    const dashboard = document.getElementById("dashboard");
+
+    const pecBalance = document.getElementById("pecBalance");
+    const redeemBtn = document.getElementById("redeemBtn");
+    const messageBox = document.getElementById("message");
+
+    // Login
+    loginBtn.onclick = async () => {
+      try {
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+        userInfo.innerText = `👤 ${user.displayName}`;
+        loginBtn.style.display = "none";
+        logoutBtn.style.display = "block";
+        dashboard.style.display = "block";
+
+        const userDoc = doc(db, "users", user.uid);
+        const snap = await getDoc(userDoc);
+        if (!snap.exists()) {
+          await updateDoc(userDoc, {
+            pec: 0,
+            redeemed: false
+          });
+        }
+
+        const data = (await getDoc(userDoc)).data();
+        pecBalance.innerText = `${data.pec} PEC`;
+      } catch (e) {
+        alert("Login failed");
+        console.error(e);
+      }
+    };
+
+    // Logout
+    logoutBtn.onclick = () => {
+      signOut(auth).then(() => {
+        loginBtn.style.display = "block";
+        logoutBtn.style.display = "none";
+        dashboard.style.display = "none";
+        userInfo.innerText = "";
+      });
+    };
+
+    // Redeem
+    redeemBtn.onclick = async () => {
+      const user = auth.currentUser;
+      if (!user) return alert("Login first");
+      const userDoc = doc(db, "users", user.uid);
+      const snap = await getDoc(userDoc);
+      const data = snap.data();
+      if (data.pec < 1000) {
+        messageBox.innerText = "❌ Minimum 1000 PEC required to redeem.";
+        return;
+      }
+      const newBalance = data.pec - 1000;
+      await updateDoc(userDoc, { pec: newBalance });
+      pecBalance.innerText = `${newBalance} PEC`;
+      messageBox.innerText = "✅ 1000 PEC Redeemed Successfully!";
+    };
+  </script>
+
   <style>
-    .hidden { display: none; }
-    .active-tab { background-color: #6B21A8; color: white; }
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(to bottom right, #4b0082, #8a2be2);
+      color: white;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .card {
+      background: white;
+      color: #4b0082;
+      padding: 20px;
+      margin: 20px auto;
+      border-radius: 20px;
+      max-width: 400px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.2);
+    }
+
+    button {
+      background: #4b0082;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      margin: 10px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #5e2ca5;
+    }
+
+    #dashboard {
+      display: none;
+    }
+
+    #logoutBtn {
+      display: none;
+    }
+
+    #message {
+      margin-top: 10px;
+      font-weight: bold;
+    }
   </style>
 </head>
-<body class="bg-white font-sans text-gray-800">
+<body>
+  <h1>PARAS ECOIN</h1>
+  <p id="userInfo"></p>
+  <button id="loginBtn">🔐 Login with Google</button>
+  <button id="logoutBtn">🚪 Logout</button>
 
-  <!-- Header -->
-  <div class="bg-purple-800 text-white p-4 text-center text-2xl font-bold">
-    PARAS ECOIN
+  <div id="dashboard" class="card">
+    <h2>💰 Mining Dashboard</h2>
+    <p>Current Balance: <strong id="pecBalance">-- PEC</strong></p>
+    <button id="redeemBtn">🎁 Redeem 1000 PEC</button>
+    <div id="message"></div>
   </div>
-
-  <!-- Navigation Tabs -->
-  <div class="flex justify-center bg-purple-100 p-2 space-x-2 text-sm font-medium">
-    <button onclick="showSection('home')" class="tab-btn px-3 py-1 rounded active-tab">Home</button>
-    <button onclick="showSection('mining')" class="tab-btn px-3 py-1 rounded">Mining</button>
-    <button onclick="showSection('bonus')" class="tab-btn px-3 py-1 rounded">Bonus</button>
-    <button onclick="showSection('vip')" class="tab-btn px-3 py-1 rounded">VIP</button>
-    <button onclick="showSection('redeem')" class="tab-btn px-3 py-1 rounded">Redeem</button>
-  </div>
-
-  <!-- Content Sections -->
-  <div class="p-6">
-
-    <!-- Home -->
-    <div id="home" class="section">
-      <h2 class="text-2xl text-purple-800 font-bold mb-2">Welcome to PARAS ECOIN</h2>
-      <p class="mb-4">India's most rewarding digital coin. Start earning today!</p>
-      <p class="text-lg text-green-600 font-semibold">💰 100 PEC = ₹1.00</p>
-    </div>
-
-    <!-- Mining -->
-    <div id="mining" class="section hidden">
-      <h2 class="text-2xl text-purple-700 font-bold mb-4">⛏️ Mining Dashboard</h2>
-      <p>Mining Rate: <span class="font-semibold">4.545 PEC/hour</span></p>
-      <p>Total Mined: <span class="font-semibold">1520 PEC</span></p>
-      <p>Active Referrals: <span class="font-semibold">12</span></p>
-    </div>
-
-    <!-- Bonus -->
-    <div id="bonus" class="section hidden">
-      <h2 class="text-2xl text-purple-700 font-bold mb-4">🎁 Daily Bonus</h2>
-      <button class="bg-purple-600 text-white px-6 py-2 rounded shadow">Claim Bonus</button>
-      <p class="text-sm text-gray-500 mt-2">Login daily to earn extra PEC.</p>
-    </div>
-
-    <!-- VIP -->
-    <div id="vip" class="section hidden">
-      <h2 class="text-2xl text-purple-700 font-bold mb-4">🌟 VIP Zone</h2>
-      <p class="mb-2">Your Status: <span class="font-bold text-red-600">Non-VIP</span></p>
-      <button class="bg-yellow-500 text-white px-6 py-2 rounded shadow">Join VIP Now</button>
-    </div>
-
-    <!-- Redeem -->
-    <div id="redeem" class="section hidden">
-      <h2 class="text-2xl text-purple-700 font-bold mb-4">💸 Redeem PEC</h2>
-      <div class="bg-purple-50 p-4 rounded shadow max-w-md mx-auto">
-        <label class="block text-left mb-2 font-semibold">Enter PEC</label>
-        <input type="number" class="w-full p-2 border rounded mb-4" placeholder="Minimum 1000 PEC">
-
-        <label class="block text-left mb-2 font-semibold">Your UPI ID</label>
-        <input type="text" class="w-full p-2 border rounded mb-4" placeholder="yourupi@bank">
-
-        <button class="bg-green-600 text-white px-6 py-2 rounded w-full">Submit</button>
-        <p class="text-xs text-gray-500 mt-2">* 10% charity deduction will apply. VIP only feature.</p>
-      </div>
-    </div>
-
-  </div>
-
-  <footer class="text-center text-gray-500 text-sm mt-10 pb-4">
-    © 2025 PARAS ECOIN. All Rights Reserved.
-  </footer>
-
-  <!-- JS Section Switcher -->
-  <script>
-    const buttons = document.querySelectorAll('.tab-btn');
-    const sections = document.querySelectorAll('.section');
-
-    function showSection(id) {
-      sections.forEach(s => s.classList.add('hidden'));
-      document.getElementById(id).classList.remove('hidden');
-
-      buttons.forEach(b => b.classList.remove('active-tab'));
-      event.target.classList.add('active-tab');
-    }
-  </script>
 </body>
 </html>
