@@ -2,47 +2,66 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>PARAS ECOIN</title>
+  <title>PARAS ECOIN WebApp</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script defer src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-  <script defer src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.11.1/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.11.1/firebase-auth-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore-compat.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
+      background: linear-gradient(to right, #6a0dad, #ffffff);
+      color: #333;
       text-align: center;
-      padding: 40px;
+      padding: 20px;
     }
-    #loginBtn {
-      padding: 10px 20px;
-      font-size: 18px;
-      background-color: #5E17EB;
+    .card {
+      background: white;
+      border-radius: 20px;
+      padding: 30px;
+      margin: 20px auto;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    button {
+      background: #6a0dad;
       color: white;
       border: none;
+      padding: 12px 20px;
+      border-radius: 10px;
+      margin-top: 10px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background: #580b9a;
+    }
+    .vip {
+      background: gold;
+      padding: 5px 10px;
       border-radius: 8px;
-      cursor: pointer;
-    }
-    #logoutBtn {
-      display: none;
-      padding: 8px 16px;
-      font-size: 14px;
-      margin-top: 20px;
-      background-color: crimson;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
-  <h1>Welcome to PARAS ECOIN</h1>
-  <p id="status">Please login to continue</p>
-  <button id="loginBtn" onclick="handleLogin()">Sign in with Google</button>
-  <button id="logoutBtn" onclick="logout()">Logout</button>
+  <div class="card">
+    <h2>Welcome to PARAS ECOIN</h2>
+    <button id="loginBtn">Sign in with Google</button>
+    <div id="userInfo" style="display:none;">
+      <p>👤 <span id="username"></span></p>
+      <p>💰 Balance: <span id="balance">0</span> PEC</p>
+      <p id="vipStatus"></p>
+      <button onclick="claimDaily()">🎁 Claim Daily Bonus</button>
+      <button onclick="playTap()">👆 Play Tap Tycoon</button>
+      <button onclick="redeem()">💸 Redeem (10% Charity)</button>
+      <button onclick="logout()">🚪 Logout</button>
+    </div>
+  </div>
 
   <script>
-    // 🔧 Your Firebase Config here
+    // 👉 Replace with your Firebase Config
     const firebaseConfig = {
   apiKey: "AIzaSyBVzkXwX5Fhwq-NiCWbC9ii8cq-5jPY3ac",
   authDomain: "paras-ecoin-bfad2.firebaseapp.com",
@@ -56,58 +75,85 @@
     const auth = firebase.auth();
     const db = firebase.firestore();
 
-    let isLoggingIn = false;
+    const loginBtn = document.getElementById("loginBtn");
+    const userInfo = document.getElementById("userInfo");
+    const username = document.getElementById("username");
+    const balanceSpan = document.getElementById("balance");
+    const vipStatus = document.getElementById("vipStatus");
 
-    function handleLogin() {
-      if (isLoggingIn) return;
-      isLoggingIn = true;
+    let currentUser = null;
 
+    loginBtn.onclick = () => {
       const provider = new firebase.auth.GoogleAuthProvider();
+      auth.signInWithPopup(provider).catch(err => alert("Login Failed: " + err.message));
+    };
 
-      auth.signInWithPopup(provider)
-        .then((result) => {
-          const user = result.user;
-          document.getElementById("status").innerText = `Logged in as ${user.displayName}`;
-          document.getElementById("loginBtn").style.display = "none";
-          document.getElementById("logoutBtn").style.display = "inline-block";
-          saveUser(user);
-          isLoggingIn = false;
-        })
-        .catch((error) => {
-          alert("Login failed: " + error.message);
-          isLoggingIn = false;
-        });
+    auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        currentUser = user;
+        loginBtn.style.display = "none";
+        userInfo.style.display = "block";
+        username.innerText = user.displayName;
+
+        const docRef = db.collection("users").doc(user.uid);
+        const doc = await docRef.get();
+        if (!doc.exists) {
+          await docRef.set({ balance: 100, vip: false, lastLogin: null });
+        }
+        updateUI();
+      }
+    });
+
+    async function updateUI() {
+      const doc = await db.collection("users").doc(currentUser.uid).get();
+      const data = doc.data();
+      balanceSpan.innerText = data.balance;
+      vipStatus.innerHTML = data.vip ? `<div class="vip">🌟 VIP MEMBER</div>` : "🧑‍💼 Free User";
+    }
+
+    async function claimDaily() {
+      const docRef = db.collection("users").doc(currentUser.uid);
+      const doc = await docRef.get();
+      const today = new Date().toDateString();
+      if (doc.data().lastLogin === today) {
+        alert("Already claimed today.");
+        return;
+      }
+      const newBalance = doc.data().balance + 100;
+      await docRef.update({ balance: newBalance, lastLogin: today });
+      alert("+100 PEC Daily Bonus!");
+      updateUI();
+    }
+
+    async function playTap() {
+      const gain = Math.floor(Math.random() * 20 + 10);
+      const docRef = db.collection("users").doc(currentUser.uid);
+      const doc = await docRef.get();
+      await docRef.update({ balance: doc.data().balance + gain });
+      alert("You earned " + gain + " PEC!");
+      updateUI();
+    }
+
+    async function redeem() {
+      const docRef = db.collection("users").doc(currentUser.uid);
+      const doc = await docRef.get();
+      if (!doc.data().vip) {
+        alert("Only VIP users can redeem!");
+        return;
+      }
+      const total = doc.data().balance;
+      if (total < 100) return alert("Minimum 100 PEC required to redeem.");
+      const redeemAmt = Math.floor(total * 0.9);
+      const charity = total - redeemAmt;
+      await docRef.update({ balance: 0 });
+      alert("Redeemed: " + redeemAmt + " PEC\nDonated to Charity: " + charity + " PEC");
+      updateUI();
     }
 
     function logout() {
-      auth.signOut().then(() => {
-        document.getElementById("status").innerText = "Please login to continue";
-        document.getElementById("loginBtn").style.display = "inline-block";
-        document.getElementById("logoutBtn").style.display = "none";
-      });
+      auth.signOut();
+      location.reload();
     }
-
-    function saveUser(user) {
-      const userRef = db.collection("users").doc(user.uid);
-      userRef.set({
-        uid: user.uid,
-        name: user.displayName,
-        email: user.email,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
-    }
-
-    auth.onAuthStateChanged((user) => {
-      if (user) {
-        document.getElementById("status").innerText = `Logged in as ${user.displayName}`;
-        document.getElementById("loginBtn").style.display = "none";
-        document.getElementById("logoutBtn").style.display = "inline-block";
-      } else {
-        document.getElementById("status").innerText = "Please login to continue";
-        document.getElementById("loginBtn").style.display = "inline-block";
-        document.getElementById("logoutBtn").style.display = "none";
-      }
-    });
   </script>
 </body>
 </html>
