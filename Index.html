@@ -2,155 +2,179 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>PARAS ECOIN - Dashboard</title>
+  <title>Paras Ecoin Web App</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Firebase -->
-  <script type="module">
-    // Firebase SDK imports
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-    import { getAuth, signInWithPopup, GoogleAuthProvider, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-
-    // Config
-    const firebaseConfig = {
-      apiKey: "AIzaSyBVzkXwX5Fhwq-NiCWbC9ii8cq-5jPY3ac",
-      authDomain: "paras-ecoin-bfad2.firebaseapp.com",
-      projectId: "paras-ecoin-bfad2",
-      storageBucket: "paras-ecoin-bfad2.appspot.com",
-      messagingSenderId: "315406512180",
-      appId: "1:315406512180:web:a6330984e75cca65bc1a61"
-    };
-
-    // Initialize
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const auth = getAuth();
-    const provider = new GoogleAuthProvider();
-
-    // UI Refs
-    const loginBtn = document.getElementById("loginBtn");
-    const logoutBtn = document.getElementById("logoutBtn");
-    const userInfo = document.getElementById("userInfo");
-    const dashboard = document.getElementById("dashboard");
-
-    const pecBalance = document.getElementById("pecBalance");
-    const redeemBtn = document.getElementById("redeemBtn");
-    const messageBox = document.getElementById("message");
-
-    // Login
-    loginBtn.onclick = async () => {
-      try {
-        const result = await signInWithPopup(auth, provider);
-        const user = result.user;
-        userInfo.innerText = `👤 ${user.displayName}`;
-        loginBtn.style.display = "none";
-        logoutBtn.style.display = "block";
-        dashboard.style.display = "block";
-
-        const userDoc = doc(db, "users", user.uid);
-        const snap = await getDoc(userDoc);
-        if (!snap.exists()) {
-          await updateDoc(userDoc, {
-            pec: 0,
-            redeemed: false
-          });
-        }
-
-        const data = (await getDoc(userDoc)).data();
-        pecBalance.innerText = `${data.pec} PEC`;
-      } catch (e) {
-        alert("Login failed");
-        console.error(e);
-      }
-    };
-
-    // Logout
-    logoutBtn.onclick = () => {
-      signOut(auth).then(() => {
-        loginBtn.style.display = "block";
-        logoutBtn.style.display = "none";
-        dashboard.style.display = "none";
-        userInfo.innerText = "";
-      });
-    };
-
-    // Redeem
-    redeemBtn.onclick = async () => {
-      const user = auth.currentUser;
-      if (!user) return alert("Login first");
-      const userDoc = doc(db, "users", user.uid);
-      const snap = await getDoc(userDoc);
-      const data = snap.data();
-      if (data.pec < 1000) {
-        messageBox.innerText = "❌ Minimum 1000 PEC required to redeem.";
-        return;
-      }
-      const newBalance = data.pec - 1000;
-      await updateDoc(userDoc, { pec: newBalance });
-      pecBalance.innerText = `${newBalance} PEC`;
-      messageBox.innerText = "✅ 1000 PEC Redeemed Successfully!";
-    };
-  </script>
-
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: linear-gradient(to bottom right, #4b0082, #8a2be2);
-      color: white;
+      background-color: #0f172a;
+      color: #fff;
+      margin: 0;
+      padding: 20px;
       text-align: center;
-      padding: 20px;
     }
-
-    .card {
-      background: white;
-      color: #4b0082;
-      padding: 20px;
-      margin: 20px auto;
-      border-radius: 20px;
-      max-width: 400px;
-      box-shadow: 0 0 15px rgba(0,0,0,0.2);
-    }
-
     button {
-      background: #4b0082;
+      padding: 10px 20px;
+      background-color: #4f46e5;
       color: white;
       border: none;
-      padding: 10px 20px;
-      margin: 10px;
       border-radius: 8px;
-      font-size: 16px;
-      cursor: pointer;
+      margin: 10px;
     }
-
-    button:hover {
-      background: #5e2ca5;
-    }
-
-    #dashboard {
-      display: none;
-    }
-
-    #logoutBtn {
-      display: none;
-    }
-
-    #message {
-      margin-top: 10px;
+    .vip {
+      color: gold;
       font-weight: bold;
     }
   </style>
 </head>
 <body>
-  <h1>PARAS ECOIN</h1>
-  <p id="userInfo"></p>
-  <button id="loginBtn">🔐 Login with Google</button>
-  <button id="logoutBtn">🚪 Logout</button>
 
-  <div id="dashboard" class="card">
-    <h2>💰 Mining Dashboard</h2>
-    <p>Current Balance: <strong id="pecBalance">-- PEC</strong></p>
-    <button id="redeemBtn">🎁 Redeem 1000 PEC</button>
-    <div id="message"></div>
+  <h1>PARAS ECOIN</h1>
+  <p id="user-info"></p>
+  <div id="auth-buttons">
+    <button onclick="signIn()">Sign in with Google</button>
   </div>
+  <div id="app" style="display:none;">
+    <p>Balance: <span id="balance">0</span> PEC</p>
+    <p>Status: <span id="vip-status">Free User</span></p>
+    <button onclick="claimDailyBonus()">Claim Daily Bonus</button>
+    <button onclick="tap()">Tap to Earn</button>
+    <p>Total Taps: <span id="taps">0</span></p>
+    <div id="vip-section" style="margin-top: 20px;">
+      <h3>Redeem Section (VIP Only)</h3>
+      <button onclick="redeem()">Redeem PEC</button>
+    </div>
+    <br>
+    <button onclick="signOut()">Sign Out</button>
+  </div>
+
+  <script type="module">
+  const firebaseConfig = {
+  apiKey: "AIzaSyBVzkXwX5Fhwq-NiCWbC9ii8cq-5jPY3ac",
+  authDomain: "paras-ecoin-bfad2.firebaseapp.com",
+  projectId: "paras-ecoin-bfad2",
+  storageBucket: "paras-ecoin-bfad2.firebasestorage.app",
+  messagingSenderId: "315406512180",
+  appId: "1:315406512180:web:a6330984e75cca65bc1a61"
+};
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    let currentUser = null;
+
+    auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        currentUser = user;
+        document.getElementById("auth-buttons").style.display = "none";
+        document.getElementById("app").style.display = "block";
+        document.getElementById("user-info").textContent = `Welcome, ${user.displayName}`;
+
+        const userRef = db.collection("users").doc(user.uid);
+        const doc = await userRef.get();
+        if (!doc.exists) {
+          await userRef.set({
+            name: user.displayName,
+            email: user.email,
+            balance: 0,
+            vip: false,
+            dailyBonusClaimed: false,
+            totalTaps: 0,
+            lastLogin: new Date()
+          });
+        } else {
+          const today = new Date().toDateString();
+          const lastLogin = doc.data().lastLogin?.toDate().toDateString();
+          if (lastLogin !== today) {
+            await userRef.update({
+              dailyBonusClaimed: false,
+              lastLogin: new Date()
+            });
+          }
+        }
+        updateUI();
+      } else {
+        document.getElementById("auth-buttons").style.display = "block";
+        document.getElementById("app").style.display = "none";
+      }
+    });
+
+    async function updateUI() {
+      const userRef = db.collection("users").doc(currentUser.uid);
+      const doc = await userRef.get();
+      const data = doc.data();
+      document.getElementById("balance").textContent = data.balance;
+      document.getElementById("taps").textContent = data.totalTaps;
+      document.getElementById("vip-status").textContent = data.vip ? "VIP Member ✅" : "Free User ❌";
+      document.getElementById("vip-status").className = data.vip ? "vip" : "";
+      document.getElementById("vip-section").style.display = data.vip ? "block" : "none";
+    }
+
+    async function signIn() {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      await auth.signInWithPopup(provider);
+    }
+
+    async function signOut() {
+      await auth.signOut();
+    }
+
+    async function claimDailyBonus() {
+      const userRef = db.collection("users").doc(currentUser.uid);
+      const doc = await userRef.get();
+      if (!doc.data().dailyBonusClaimed) {
+        const bonus = Math.floor(Math.random() * 601) + 100;
+        await userRef.update({
+          balance: doc.data().balance + bonus,
+          dailyBonusClaimed: true
+        });
+        alert(`You received ${bonus} PEC as Daily Bonus!`);
+        updateUI();
+      } else {
+        alert("Daily Bonus already claimed!");
+      }
+    }
+
+    async function tap() {
+      const userRef = db.collection("users").doc(currentUser.uid);
+      const doc = await userRef.get();
+      await userRef.update({
+        balance: doc.data().balance + 5,
+        totalTaps: doc.data().totalTaps + 1
+      });
+      updateUI();
+    }
+
+    async function redeem() {
+      const userRef = db.collection("users").doc(currentUser.uid);
+      const doc = await userRef.get();
+      if (!doc.data().vip) {
+        alert("VIP only feature. Please upgrade.");
+        return;
+      }
+
+      const currentBalance = doc.data().balance;
+      if (currentBalance < 1000) {
+        alert("Minimum 1000 PEC required for redeem.");
+        return;
+      }
+
+      const redeemAmount = currentBalance;
+      const charity = Math.floor(redeemAmount * 0.10);
+      const finalAmount = redeemAmount - charity;
+
+      await userRef.update({
+        balance: 0
+      });
+
+      alert(`Redeemed ${redeemAmount} PEC (₹${redeemAmount / 100}). Charity Deducted: ${charity} PEC`);
+      updateUI();
+    }
+  </script>
 </body>
 </html>
