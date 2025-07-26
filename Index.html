@@ -4,163 +4,212 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PARAS ECOIN</title>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
   <style>
     body {
-      margin: 0;
       font-family: sans-serif;
-      background: #f5f3ff;
-      color: #4c1d95;
+      background: #f8f6ff;
+      color: #333;
+      text-align: center;
+      padding: 2rem;
     }
-    .container {
-      max-width: 600px;
-      margin: 2rem auto;
+    .card {
       background: white;
-      border-radius: 16px;
-      padding: 1.5rem;
-      box-shadow: 0 0 16px #ddd;
+      border-radius: 1.5rem;
+      padding: 2rem;
+      max-width: 500px;
+      margin: 1rem auto;
+      box-shadow: 0 0 12px rgba(0,0,0,0.1);
     }
     button {
-      padding: 10px 20px;
-      margin: 8px 0;
-      background: #6d28d9;
+      background: violet;
       color: white;
+      padding: 0.8rem 1.5rem;
       border: none;
-      border-radius: 8px;
+      border-radius: 0.7rem;
       cursor: pointer;
+      font-weight: bold;
+      margin-top: 1rem;
     }
-    button:hover {
-      background: #7c3aed;
-    }
-    .vip {
-      background: gold;
-      color: black;
-      padding: 4px 8px;
-      border-radius: 8px;
-      display: inline-block;
-      margin-top: 4px;
-    }
-    .market-item {
-      border: 1px solid #ddd;
-      padding: 10px;
-      margin: 6px 0;
-      border-radius: 10px;
+    button:disabled {
+      background: grey;
     }
   </style>
 </head>
 <body>
-  <div class="container" id="app">
-    <h2>🚀 Welcome to PARAS ECOIN</h2>
-    <div id="userSection">
-      <button onclick="signIn()">Sign in with Google</button>
-    </div>
 
-    <div id="dashboard" style="display:none;">
-      <p>👤 <span id="userName"></span> <span id="vipBadge" class="vip" style="display:none;">VIP</span></p>
-      <p>💰 Balance: <span id="balance">0</span> PEC</p>
-      <p>🎁 Daily Bonus: <button onclick="claimBonus()">Claim</button></p>
-      <p>👆 Tap Tycoon: <button onclick="playGame()">+ Tap</button> | Score: <span id="score">0</span></p>
-      <p>🕊️ Charity Redeem: <button onclick="redeem()">Redeem 100 PEC</button></p>
-
-      <h3>🛍️ Marketplace</h3>
-      <div class="market-item">Mobile Recharge – 1000 PEC</div>
-      <div class="market-item">Shopping Voucher – 5000 PEC</div>
-    </div>
+  <div id="login" class="card">
+    <h2>Welcome to PARAS ECOIN</h2>
+    <button onclick="googleLogin()">Sign in with Google</button>
   </div>
 
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.4.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js"></script>
+  <div id="app" class="card" style="display:none">
+    <h2>Hello, <span id="username"></span></h2>
+    <p><b>PEC Balance:</b> <span id="balance">0</span> PEC</p>
+    <p><b>VIP:</b> <span id="vip">No</span></p>
+    <p><b>Last Login:</b> <span id="lastLogin">--</span></p>
+
+    <button onclick="mineNow()">⛏️ Mine Now</button>
+    <button onclick="dailyBonus()">🎁 Daily Bonus</button>
+    <button onclick="tapTycoon()">👆 Tap Tycoon Game</button>
+    <button onclick="redeemCoins()">💸 Redeem</button>
+
+    <p><b>Total Mined:</b> <span id="totalMined">0</span> PEC</p>
+    <p><b>Charity Given:</b> <span id="charity">0</span> PEC</p>
+    <button onclick="logout()">Logout</button>
+  </div>
 
   <script>
-    // Firebase Config
-    const firebaseConfig = {
-      apiKey: "AIzaSyBVzkXwX5Fhwq-NiCWbC9ii8cq-5jPY3ac",
-      authDomain: "paras-ecoin-bfad2.firebaseapp.com",
-      projectId: "paras-ecoin-bfad2",
-      storageBucket: "paras-ecoin-bfad2.appspot.com",
-      messagingSenderId: "315406512180",
-      appId: "1:315406512180:web:a6330984e75cca65bc1a61"
-    };
-    const app = firebase.initializeApp(firebaseConfig);
+  const firebaseConfig = {
+  apiKey: "AIzaSyBVzkXwX5Fhwq-NiCWbC9ii8cq-5jPY3ac",
+  authDomain: "paras-ecoin-bfad2.firebaseapp.com",
+  projectId: "paras-ecoin-bfad2",
+  storageBucket: "paras-ecoin-bfad2.firebasestorage.app",
+  messagingSenderId: "315406512180",
+  appId: "1:315406512180:web:a6330984e75cca65bc1a61"
+};
+
+    firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
 
-    let currentUser = null;
+    let userUID = "";
 
-    function signIn() {
+    async function googleLogin() {
       const provider = new firebase.auth.GoogleAuthProvider();
-      auth.signInWithPopup(provider)
-        .then(result => {
-          currentUser = result.user;
-          document.getElementById("userName").innerText = currentUser.displayName;
-          loadUserData();
-          document.getElementById("userSection").style.display = "none";
-          document.getElementById("dashboard").style.display = "block";
-        });
+      try {
+        const result = await auth.signInWithPopup(provider);
+        const user = result.user;
+        userUID = user.uid;
+
+        const docRef = db.collection("users").doc(user.uid);
+        const docSnap = await docRef.get();
+
+        if (!docSnap.exists) {
+          await docRef.set({
+            email: user.email,
+            name: user.displayName,
+            balance: 0,
+            isVIP: false,
+            lastLogin: new Date().toISOString().split("T")[0],
+            totalMined: 0,
+            charityGiven: 0
+          });
+        }
+
+        document.getElementById("username").innerText = user.displayName;
+        showApp();
+      } catch (e) {
+        alert("Login failed: " + e.message);
+      }
+    }
+
+    function showApp() {
+      document.getElementById("login").style.display = "none";
+      document.getElementById("app").style.display = "block";
+      loadUserData();
     }
 
     async function loadUserData() {
-      const userRef = db.collection("users").doc(currentUser.uid);
-      const doc = await userRef.get();
-      if (!doc.exists) {
-        await userRef.set({
-          balance: 0,
-          isVIP: false,
-          gameScore: 0,
-          lastLogin: new Date(),
-          totalCharity: 0,
-          wallet: ""
-        });
-      }
-      const data = (await userRef.get()).data();
-      document.getElementById("balance").innerText = data.balance;
-      document.getElementById("score").innerText = data.gameScore;
-      if (data.isVIP) document.getElementById("vipBadge").style.display = "inline-block";
-    }
-
-    async function claimBonus() {
-      const userRef = db.collection("users").doc(currentUser.uid);
-      const doc = await userRef.get();
+      const doc = await db.collection("users").doc(userUID).get();
       const data = doc.data();
-      const now = new Date();
-      const lastLogin = data.lastLogin?.toDate();
-
-      if (!lastLogin || now - lastLogin > 86400000) {
-        await userRef.update({
-          balance: data.balance + 100,
-          lastLogin: now
-        });
-        alert("🎁 Bonus Claimed!");
-        loadUserData();
-      } else {
-        alert("⏳ Bonus already claimed today.");
-      }
+      document.getElementById("balance").innerText = data.balance;
+      document.getElementById("vip").innerText = data.isVIP ? "Yes" : "No";
+      document.getElementById("lastLogin").innerText = data.lastLogin;
+      document.getElementById("totalMined").innerText = data.totalMined;
+      document.getElementById("charity").innerText = data.charityGiven;
     }
 
-    async function playGame() {
-      const userRef = db.collection("users").doc(currentUser.uid);
-      const doc = await userRef.get();
-      const score = doc.data().gameScore || 0;
-      await userRef.update({ gameScore: score + 1, balance: doc.data().balance + 1 });
+    async function mineNow() {
+      const ref = db.collection("users").doc(userUID);
+      const doc = await ref.get();
+      const data = doc.data();
+      const newBal = data.balance + 10;
+      const newTotal = data.totalMined + 10;
+
+      await ref.update({
+        balance: newBal,
+        totalMined: newTotal
+      });
       loadUserData();
     }
 
-    async function redeem() {
-      const userRef = db.collection("users").doc(currentUser.uid);
-      const doc = await userRef.get();
-      let bal = doc.data().balance;
-      if (bal < 100) {
-        alert("Not enough balance.");
+    async function dailyBonus() {
+      const today = new Date().toISOString().split("T")[0];
+      const ref = db.collection("users").doc(userUID);
+      const doc = await ref.get();
+      const data = doc.data();
+
+      if (data.lastLogin === today) {
+        alert("Already claimed today’s bonus!");
         return;
       }
-      await userRef.update({
-        balance: bal - 100,
-        totalCharity: (doc.data().totalCharity || 0) + 10
+
+      const bonus = Math.floor(Math.random() * 601) + 100; // 100 to 700
+      await ref.update({
+        balance: data.balance + bonus,
+        lastLogin: today
       });
-      alert("💸 100 PEC Redeemed (10 to Charity)");
+      alert("Bonus Claimed: " + bonus + " PEC");
       loadUserData();
     }
+
+    async function tapTycoon() {
+      const coins = Math.floor(Math.random() * 30) + 20;
+      const ref = db.collection("users").doc(userUID);
+      const doc = await ref.get();
+      const data = doc.data();
+
+      await ref.update({
+        balance: data.balance + coins,
+        totalMined: data.totalMined + coins
+      });
+      alert("You earned " + coins + " PEC!");
+      loadUserData();
+    }
+
+    async function redeemCoins() {
+      const ref = db.collection("users").doc(userUID);
+      const doc = await ref.get();
+      const data = doc.data();
+
+      if (!data.isVIP) {
+        alert("Only VIP users can redeem.");
+        return;
+      }
+
+      const amount = parseInt(prompt("Enter PEC to redeem:"));
+      if (isNaN(amount) || amount <= 0 || amount > data.balance) {
+        alert("Invalid amount.");
+        return;
+      }
+
+      const charity = Math.floor(amount * 0.1);
+      const finalAmount = amount - charity;
+
+      await ref.update({
+        balance: data.balance - amount,
+        charityGiven: data.charityGiven + charity
+      });
+
+      alert("Redeemed: " + finalAmount + " PEC\n10% (" + charity + " PEC) sent to charity.");
+      loadUserData();
+    }
+
+    function logout() {
+      auth.signOut().then(() => location.reload());
+    }
+
+    auth.onAuthStateChanged((user) => {
+      if (user) {
+        userUID = user.uid;
+        document.getElementById("username").innerText = user.displayName;
+        showApp();
+      }
+    });
   </script>
+
 </body>
 </html>
